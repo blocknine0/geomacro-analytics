@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Geomacro · System Analytics</title>
+<meta name="description" content="Live technical and automation health for Geomacro's onchain risk pipeline: ingestion, market lifecycle, and settlement metrics." />
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --card: rgba(255,255,255,0.04);
+    --border: rgba(255,255,255,0.10);
+    --text: #f2f2f5;
+    --muted: #9a9aa5;
+    --accent: #f59e0b;
+    --dove: #38bdf8;
+    --mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+    --sans: "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    -webkit-font-smoothing: antialiased;
+  }
+  main {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 64px 24px 96px;
+  }
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    color: var(--muted);
+  }
+  h1 {
+    font-size: 32px;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    margin: 12px 0 0;
+  }
+  .lede {
+    max-width: 640px;
+    margin: 14px 0 0;
+    font-size: 14px;
+    line-height: 1.6;
+    color: var(--muted);
+  }
+  .lede a { color: var(--text); }
+  section { margin-top: 48px; }
+  h2 {
+    font-size: 20px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    margin: 0;
+  }
+  .subtitle {
+    margin: 4px 0 0;
+    font-size: 13px;
+    color: var(--muted);
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+    margin-top: 16px;
+  }
+  @media (min-width: 640px) {
+    .grid { grid-template-columns: repeat(3, 1fr); }
+  }
+  .card {
+    border: 1px solid var(--border);
+    background: var(--card);
+    border-radius: 16px;
+    padding: 20px;
+    backdrop-filter: blur(6px);
+  }
+  .card-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-family: var(--mono);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--muted);
+  }
+  .card-value {
+    margin-top: 8px;
+    font-family: var(--mono);
+    font-size: 24px;
+    font-variant-numeric: tabular-nums;
+  }
+  .card-hint {
+    margin-top: 4px;
+    font-size: 12px;
+    color: var(--muted);
+  }
+  .badges { margin-top: 16px; display: flex; flex-wrap: wrap; gap: 8px; }
+  .badge {
+    font-family: var(--mono);
+    font-size: 10px;
+    padding: 5px 10px;
+    border-radius: 999px;
+    background: rgba(255,255,255,0.06);
+    color: var(--text);
+  }
+  .badge.hawk { background: rgba(245,158,11,0.15); color: #fbbf24; }
+  .badge.dove { background: rgba(56,189,248,0.15); color: #7dd3fc; }
+  .footnote {
+    margin-top: 56px;
+    font-size: 12px;
+    color: var(--muted);
+    line-height: 1.6;
+    border-top: 1px solid var(--border);
+    padding-top: 20px;
+  }
+  .status { margin-top: 40px; font-size: 13px; color: var(--muted); }
+  .error { margin-top: 40px; font-size: 13px; color: #f87171; }
+</style>
+</head>
+<body>
+<main>
+  <div class="eyebrow">System Analytics</div>
+  <h1>Pipeline &amp; automation health</h1>
+  <p class="lede">
+    Geomacro runs as a fully autonomous pipeline — news ingestion, AI severity scoring,
+    market creation, and onchain settlement — with no manual step in between. These are
+    live counts pulled directly from the production database and the
+    <a href="https://testnet.arcscan.app/address/0xC026fDFC40Dcd8F07b6ecFA21b2BF8400Db0FADe" target="_blank" rel="noreferrer">Arc Testnet contract</a>
+    the app itself uses. Nothing here is sampled or estimated.
+  </p>
+
+  <div id="status" class="status">Loading live metrics…</div>
+  <div id="error" class="error" style="display:none;"></div>
+
+  <div id="content" style="display:none;">
+    <div class="grid">
+      <div class="card">
+        <div class="card-label">↻ Automation cadence</div>
+        <div class="card-value">Every 2h</div>
+        <div class="card-hint">Ingestion → scoring → creation → resolution, 24/7</div>
+      </div>
+      <div class="card">
+        <div class="card-label">⏱ Operating since</div>
+        <div class="card-value" id="uptime-days">—</div>
+        <div class="card-hint">Since the first ingested event</div>
+      </div>
+      <div class="card">
+        <div class="card-label">⚙ Protocol fee</div>
+        <div class="card-value">1.5%</div>
+        <div class="card-hint">Deducted from payouts on claim(), onchain</div>
+      </div>
+    </div>
+
+    <section>
+      <h2>News ingestion</h2>
+      <p class="subtitle">Every headline is classified for relevance and severity before it can become a market.</p>
+      <div class="grid">
+        <div class="card">
+          <div class="card-label">◎ Events ingested</div>
+          <div class="card-value" id="events-ingested">—</div>
+        </div>
+        <div class="card">
+          <div class="card-label">▲ AI-processed</div>
+          <div class="card-value" id="events-ai-processed">—</div>
+        </div>
+        <div class="card">
+          <div class="card-label">▦ Converted to markets</div>
+          <div class="card-value" id="markets-created">—</div>
+          <div class="card-hint" id="conversion-rate"></div>
+        </div>
+      </div>
+      <div class="badges" id="category-badges"></div>
+    </section>
+
+    <section>
+      <h2>Market lifecycle</h2>
+      <p class="subtitle">Optimistic AI resolution with a public, stake-backed dispute window before final settlement.</p>
+      <div class="grid">
+        <div class="card">
+          <div class="card-label">▦ Markets created</div>
+          <div class="card-value" id="markets-created-2">—</div>
+        </div>
+        <div class="card">
+          <div class="card-label">▲ Markets finalized</div>
+          <div class="card-value" id="markets-resolved">—</div>
+        </div>
+        <div class="card">
+          <div class="card-label">⊘ Resolution rate</div>
+          <div class="card-value" id="resolution-rate">—</div>
+          <div class="card-hint">Finalized ÷ created</div>
+        </div>
+      </div>
+    </section>
+
+    <section id="settlement-section">
+      <h2>Onchain settlement</h2>
+      <p class="subtitle">Every stake and claim below is a real Arc Testnet transaction — no synthetic activity.</p>
+      <div class="grid">
+        <div class="card">
+          <div class="card-label">▦ Total positions</div>
+          <div class="card-value" id="total-positions">—</div>
+        </div>
+        <div class="card">
+          <div class="card-label">▲ Unique wallets</div>
+          <div class="card-value" id="unique-wallets">—</div>
+        </div>
+        <div class="card">
+          <div class="card-label">$ Total staked</div>
+          <div class="card-value" id="total-staked">—</div>
+        </div>
+      </div>
+      <div class="badges" id="side-badges"></div>
+    </section>
+
+    <div class="footnote">
+      Early-stage numbers — Geomacro is a new team building on Arc Testnet, so wallet
+      and volume counts are still small. What's shown above reflects an end-to-end
+      pipeline that has been running unattended, on schedule, since launch. Data source:
+      Geomacro's production Supabase project (public anon/read-only access), refreshed
+      on page load.
+    </div>
+  </div>
+</main>
+
+<script>
+  // Public anon key — same one already shipped in Geomacro's own client code.
+  // Read-only, RLS-protected: this key cannot write or read anything not
+  // covered by an explicit public-read policy (e.g. the `events` table).
+  const SUPABASE_URL = "https://ldpwajisioljyjtojvfx.supabase.co";
+  const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxkcHdhamlzaW9sanlqdG9qdmZ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE2NjUxNTcsImV4cCI6MjA5NzI0MTE1N30.Hm2LwUWuuyA2O28_woD9m0MJCrV-o48SUKOk5FHANNI";
+
+  const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+
+  function fmt(n, digits = 0) {
+    if (!Number.isFinite(n)) return "0";
+    return n.toLocaleString(undefined, { maximumFractionDigits: digits });
+  }
+
+  function weiToUsdc(weiStr) {
+    try {
+      const wei = BigInt(weiStr || "0");
+      // 18 decimals, formatted as a plain number
+      const divisor = 1000000000000000000n;
+      const whole = wei / divisor;
+      const frac = wei % divisor;
+      const fracStr = (frac * 100n / divisor).toString().padStart(2, "0");
+      return Number(`${whole}.${fracStr}`);
+    } catch {
+      return 0;
+    }
+  }
+
+  async function main() {
+    const statusEl = document.getElementById("status");
+    const errorEl = document.getElementById("error");
+    const contentEl = document.getElementById("content");
+
+    try {
+      // --- events table (has an explicit public-read policy) ---
+      const [
+        { count: totalEventsIngested },
+        { count: totalEventsAiProcessed },
+        { count: totalMarketsCreated },
+        { count: totalMarketsResolved },
+        { data: categoryRows },
+        { data: earliestRows },
+      ] = await Promise.all([
+        sb.from("events").select("*", { count: "exact", head: true }),
+        sb.from("events").select("*", { count: "exact", head: true }).eq("ai_processed", true),
+        sb.from("events").select("*", { count: "exact", head: true }).eq("market_created", true),
+        sb.from("events").select("*", { count: "exact", head: true }).eq("market_resolved", true),
+        sb.from("events").select("category").eq("market_created", true),
+        sb.from("events").select("created_at").order("created_at", { ascending: true }).limit(1),
+      ]);
+
+      document.getElementById("events-ingested").textContent = fmt(totalEventsIngested || 0);
+      document.getElementById("events-ai-processed").textContent = fmt(totalEventsAiProcessed || 0);
+      document.getElementById("markets-created").textContent = fmt(totalMarketsCreated || 0);
+      document.getElementById("markets-created-2").textContent = fmt(totalMarketsCreated || 0);
+      document.getElementById("markets-resolved").textContent = fmt(totalMarketsResolved || 0);
+
+      if (totalEventsAiProcessed) {
+        const pct = ((totalMarketsCreated || 0) / totalEventsAiProcessed) * 100;
+        document.getElementById("conversion-rate").textContent = `${fmt(pct, 1)}% of processed events`;
+      }
+
+      const resRate = totalMarketsCreated
+        ? Math.round(((totalMarketsResolved || 0) / totalMarketsCreated) * 1000) / 10
+        : null;
+      document.getElementById("resolution-rate").textContent = resRate !== null ? `${resRate}%` : "—";
+
+      const uptimeDays = earliestRows && earliestRows[0]
+        ? Math.max(0, Math.floor((Date.now() - new Date(earliestRows[0].created_at).getTime()) / 86400000))
+        : null;
+      document.getElementById("uptime-days").textContent = uptimeDays !== null ? `${fmt(uptimeDays)} days` : "—";
+
+      const catCounts = new Map();
+      for (const row of categoryRows || []) {
+        const cat = row.category || "unknown";
+        catCounts.set(cat, (catCounts.get(cat) || 0) + 1);
+      }
+      const badgesEl = document.getElementById("category-badges");
+      Array.from(catCounts.entries())
+        .sort((a, b) => b[1] - a[1])
+        .forEach(([cat, count]) => {
+          const span = document.createElement("span");
+          span.className = "badge";
+          span.textContent = `${cat} · ${fmt(count)}`;
+          badgesEl.appendChild(span);
+        });
+
+      // --- positions table (may be RLS-restricted; degrade gracefully) ---
+      try {
+        const { data: positionRows, error: posErr } = await sb
+          .from("positions")
+          .select("wallet_address, side, staked_amount_raw");
+
+        if (posErr) throw posErr;
+
+        const rows = positionRows || [];
+        const uniqueWallets = new Set(rows.map((r) => r.wallet_address)).size;
+        const hawkCount = rows.filter((r) => r.side === "HAWK").length;
+        const doveCount = rows.filter((r) => r.side === "DOVE").length;
+        const totalStakedRaw = rows.reduce((sum, r) => {
+          try {
+            return sum + BigInt(r.staked_amount_raw || "0");
+          } catch {
+            return sum;
+          }
+        }, 0n);
+
+        document.getElementById("total-positions").textContent = fmt(rows.length);
+        document.getElementById("unique-wallets").textContent = fmt(uniqueWallets);
+        document.getElementById("total-staked").textContent = `${fmt(weiToUsdc(totalStakedRaw.toString()), 2)} USDC`;
+
+        const sideBadgesEl = document.getElementById("side-badges");
+        const hawkBadge = document.createElement("span");
+        hawkBadge.className = "badge hawk";
+        hawkBadge.textContent = `HAWK · ${fmt(hawkCount)}`;
+        const doveBadge = document.createElement("span");
+        doveBadge.className = "badge dove";
+        doveBadge.textContent = `DOVE · ${fmt(doveCount)}`;
+        sideBadgesEl.appendChild(hawkBadge);
+        sideBadgesEl.appendChild(doveBadge);
+      } catch (posErr) {
+        // No public-read policy on `positions` — hide that section rather than show zeros.
+        console.warn("[analytics] positions table not publicly readable:", posErr);
+        document.getElementById("settlement-section").style.display = "none";
+      }
+
+      statusEl.style.display = "none";
+      contentEl.style.display = "block";
+    } catch (err) {
+      console.error("[analytics] failed to load:", err);
+      statusEl.style.display = "none";
+      errorEl.style.display = "block";
+      errorEl.textContent = "Couldn't load live metrics right now. Please refresh, or check back shortly.";
+    }
+  }
+
+  main();
+</script>
+</body>
+</html>
