@@ -1,236 +1,517 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Geomacro · System Analytics</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
-        body { font-family: 'Plus Jakarta Sans', sans-serif; }
-        .font-mono { font-family: 'JetBrains Mono', monospace; }
-    </style>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Geomacro · System Analytics</title>
+<meta name="description" content="Live technical and automation health for Geomacro's onchain risk pipeline: ingestion, market lifecycle, and settlement metrics." />
+<link rel="icon" type="image/png" href="assets/logo.png" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<style>
+  :root {
+    --bg: #07070b;
+    --card: rgba(255,255,255,0.035);
+    --card-hover: rgba(255,255,255,0.06);
+    --border: rgba(255,255,255,0.09);
+    --border-hover: rgba(255,255,255,0.18);
+    --text: #f4f4f7;
+    --muted: #8f8f9c;
+    --muted-2: #6a6a76;
+    --hawk: #f59e0b;
+    --dove: #38bdf8;
+    --success: #34d399;
+    --mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+    --sans: "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    -webkit-font-smoothing: antialiased;
+    min-height: 100vh;
+    position: relative;
+    overflow-x: hidden;
+  }
+  #net-bg { position: fixed; inset: 0; z-index: 0; pointer-events: none; }
+  #net-bg canvas { display: block; width: 100%; height: 100%; }
+  .bg-fade {
+    position: fixed; inset: 0; z-index: 1; pointer-events: none;
+    background:
+      radial-gradient(ellipse 900px 500px at 15% -10%, rgba(245,158,11,0.07), transparent 60%),
+      radial-gradient(ellipse 700px 500px at 85% 10%, rgba(56,189,248,0.06), transparent 60%),
+      linear-gradient(180deg, rgba(7,7,11,0.55) 0%, rgba(7,7,11,0.85) 45%, var(--bg) 85%);
+  }
+  main { position: relative; z-index: 2; max-width: 960px; margin: 0 auto; padding: 56px 24px 96px; }
+  header.top { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+  .brand-row { display: flex; align-items: center; gap: 14px; }
+  .brand-logo { height: 40px; width: auto; display: block; filter: drop-shadow(0 0 18px rgba(245,158,11,0.25)); }
+  .live-pill {
+    display: inline-flex; align-items: center; gap: 7px;
+    font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--success); background: rgba(52,211,153,0.08); border: 1px solid rgba(52,211,153,0.25);
+    padding: 6px 12px; border-radius: 999px; backdrop-filter: blur(6px);
+  }
+  .live-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--success); animation: pulse 2s infinite; }
+  @keyframes pulse {
+    0% { box-shadow: 0 0 0 0 rgba(52,211,153,0.55); }
+    70% { box-shadow: 0 0 0 7px rgba(52,211,153,0); }
+    100% { box-shadow: 0 0 0 0 rgba(52,211,153,0); }
+  }
+  .eyebrow { font-family: var(--mono); font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.18em; color: var(--muted); margin-top: 34px; }
+  h1 {
+    font-size: clamp(28px, 4.5vw, 42px); font-weight: 800; letter-spacing: -0.03em; line-height: 1.12; margin: 10px 0 0;
+    background: linear-gradient(135deg, #ffffff 30%, #c9c9d4 100%);
+    -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+  }
+  .lede { max-width: 620px; margin: 16px 0 0; font-size: 14.5px; line-height: 1.7; color: var(--muted); }
+  .lede a { color: var(--dove); text-decoration: none; border-bottom: 1px solid rgba(56,189,248,0.3); }
+  .lede a:hover { border-bottom-color: var(--dove); }
+  section { margin-top: 52px; opacity: 0; transform: translateY(14px); transition: opacity 0.6s ease, transform 0.6s ease; }
+  section.in-view { opacity: 1; transform: translateY(0); }
+  .section-head { display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+  h2 { font-size: 19px; font-weight: 700; letter-spacing: -0.01em; margin: 0; display: flex; align-items: center; gap: 9px; }
+  .h2-icon { width: 26px; height: 26px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 13px; flex-shrink: 0; }
+  .subtitle { margin: 5px 0 0; font-size: 13px; color: var(--muted); max-width: 520px; }
+  .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; margin-top: 18px; }
+  @media (min-width: 640px) { .grid { grid-template-columns: repeat(3, 1fr); } }
+  .grid.hero-grid { margin-top: 24px; }
+  .card {
+    position: relative; border: 1px solid var(--border); background: var(--card); border-radius: 18px;
+    padding: 20px 20px 18px; backdrop-filter: blur(14px);
+    transition: border-color 0.25s ease, background 0.25s ease, transform 0.25s ease; overflow: hidden;
+  }
+  .card:hover { border-color: var(--border-hover); background: var(--card-hover); transform: translateY(-2px); }
+  .card::before {
+    content: ""; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+    background: linear-gradient(90deg, transparent, var(--accent-line, rgba(255,255,255,0.25)), transparent);
+    opacity: 0.7;
+  }
+  .card.tone-hawk { --accent-line: var(--hawk); }
+  .card.tone-dove { --accent-line: var(--dove); }
+  .card.tone-success { --accent-line: var(--success); }
+  .card.tone-neutral { --accent-line: rgba(255,255,255,0.35); }
+  .card-label { display: flex; align-items: center; gap: 8px; font-family: var(--mono); font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted-2); }
+  .card-icon { font-size: 12px; opacity: 0.85; }
+  .card-value { margin-top: 10px; font-family: var(--mono); font-size: 27px; font-weight: 600; font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
+  .card-hint { margin-top: 5px; font-size: 12px; color: var(--muted); line-height: 1.5; }
+  .bar-track { margin-top: 12px; height: 6px; border-radius: 999px; background: rgba(255,255,255,0.06); overflow: hidden; }
+  .bar-fill { height: 100%; border-radius: 999px; width: 0%; background: linear-gradient(90deg, var(--dove), var(--success)); transition: width 1.1s cubic-bezier(0.16,1,0.3,1); }
+  .cat-list { margin-top: 16px; display: flex; flex-direction: column; gap: 9px; }
+  .cat-row { display: grid; grid-template-columns: 96px 1fr 40px; align-items: center; gap: 10px; }
+  .cat-name { font-family: var(--mono); font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .cat-track { height: 8px; border-radius: 999px; background: rgba(255,255,255,0.05); overflow: hidden; }
+  .cat-fill { height: 100%; border-radius: 999px; width: 0%; background: linear-gradient(90deg, rgba(245,158,11,0.85), rgba(245,158,11,0.5)); transition: width 1s cubic-bezier(0.16,1,0.3,1); }
+  .cat-count { font-family: var(--mono); font-size: 11.5px; color: var(--text); text-align: right; font-variant-numeric: tabular-nums; }
+  .split-wrap { margin-top: 20px; }
+  .split-labels { display: flex; justify-content: space-between; font-family: var(--mono); font-size: 11px; margin-bottom: 8px; }
+  .split-labels .hawk-label { color: var(--hawk); }
+  .split-labels .dove-label { color: var(--dove); }
+  .split-track { height: 12px; border-radius: 999px; overflow: hidden; display: flex; background: rgba(255,255,255,0.05); border: 1px solid var(--border); }
+  .split-hawk { height: 100%; width: 50%; background: linear-gradient(90deg, #d97706, var(--hawk)); transition: width 1.1s cubic-bezier(0.16,1,0.3,1); }
+  .split-dove { height: 100%; width: 50%; background: linear-gradient(90deg, var(--dove), #0ea5e9); transition: width 1.1s cubic-bezier(0.16,1,0.3,1); }
+  .footnote { margin-top: 60px; font-size: 12px; color: var(--muted-2); line-height: 1.7; border-top: 1px solid var(--border); padding-top: 22px; display: flex; align-items: flex-start; gap: 10px; }
+  .footnote .live-dot { margin-top: 5px; flex-shrink: 0; }
+  .back-link {
+    margin-top: 28px; display: inline-flex; align-items: center; gap: 6px;
+    font-family: var(--mono); font-size: 11.5px; color: var(--muted); text-decoration: none;
+    border: 1px solid var(--border); padding: 8px 14px; border-radius: 999px;
+    transition: border-color 0.2s ease, color 0.2s ease; background: rgba(0,0,0,0.2); backdrop-filter: blur(6px);
+  }
+  .back-link:hover { border-color: var(--border-hover); color: var(--text); }
+  .status { margin-top: 40px; font-size: 13px; color: var(--muted); display: flex; align-items: center; gap: 10px; }
+  .spinner { width: 14px; height: 14px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.15); border-top-color: var(--dove); animation: spin 0.8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .error { margin-top: 40px; font-size: 13px; color: #f87171; }
+</style>
 </head>
-<body class="bg-black text-zinc-400 min-h-screen relative overflow-x-hidden selection:bg-amber-500/30 selection:text-amber-200">
-
-    <canvas id="net-canvas" class="fixed inset-0 pointer-events-none z-0 opacity-40"></canvas>
-
-    <div class="relative z-10 max-w-6xl mx-auto px-6 py-16 md:py-24">
-        
-        <header class="max-w-3xl mb-16 space-y-4">
-            <div class="inline-flex items-center gap-2 bg-zinc-900 border border-zinc-800 px-3 py-1 rounded-full text-xs text-zinc-300">
-                <span class="h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                System Monitoring Active
-            </div>
-            <h1 class="text-4xl md:text-5xl font-bold tracking-tight text-white">
-                Real-Time Platform Vitals
-            </h1>
-            <p class="text-base md:text-lg text-zinc-400 leading-relaxed">
-                Welcome to the engine room. Everything happening on Geomacro runs on a fully autonomous, 24/7 loop: from tracking global news headlines and AI severity scoring, to creating markets and settling them on-chain.
-            </p>
-            <p class="text-sm text-zinc-500">
-                No manual tweaks, no guesswork, and zero vanity metrics. What you see below is raw, live data pulled directly from our production database and the 
-                <a href="https://testnet.arcscan.app/address/0xC026fDFC40Dcd8F07b6ecFA21b2BF8400Db0FADe" target="_blank" class="text-amber-500/90 hover:text-amber-400 transition-colors underline decoration-amber-500/30 underline-offset-4">Arc Testnet contract</a> the app uses.
-            </p>
-        </header>
-
-        <section class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-16">
-            <div class="bg-zinc-900/40 border border-zinc-800/80 rounded-xl p-5 backdrop-blur-md">
-                <div class="text-[10px] text-zinc-500 font-mono uppercase tracking-widest mb-1">Automation Cadence</div>
-                <div class="text-white font-medium">Every 2 Hours</div>
-                <div class="text-xs text-zinc-500 mt-1">Ingestion, scoring, creation, and resolution loop, 24/7.</div>
-            </div>
-            <div class="bg-zinc-900/40 border border-zinc-800/80 rounded-xl p-5 backdrop-blur-md">
-                <div class="text-[10px] text-zinc-500 font-mono uppercase tracking-widest mb-1">Operating Since</div>
-                <div class="text-white font-medium" id="operating-since">Loading...</div>
-                <div class="text-xs text-zinc-500 mt-1">Calculated since the first ingested global event.</div>
-            </div>
-            <div class="bg-zinc-900/40 border border-zinc-800/80 rounded-xl p-5 backdrop-blur-md">
-                <div class="text-[10px] text-zinc-500 font-mono uppercase tracking-widest mb-1">Protocol Fee</div>
-                <div class="text-white font-medium">1.5%</div>
-                <div class="text-xs text-zinc-500 mt-1">Deducted transparently on-chain from claim() payouts.</div>
-            </div>
-        </section>
-
-        <div class="mb-14">
-            <h2 class="text-sm font-semibold uppercase tracking-widest text-zinc-500 font-mono mb-6">01 // News Ingestion</h2>
-            <div class="grid grid-cols-1 sm:grid-cols-3 gap-5">
-                <div class="bg-zinc-900/30 border border-zinc-900 p-6 rounded-xl relative group hover:border-zinc-800 transition-all duration-300">
-                    <div class="text-xs text-zinc-500 font-medium">Global Stories Tracked</div>
-                    <div class="mt-4 text-3xl font-bold tracking-tight text-white font-mono" id="events-ingested">Loading...</div>
-                    <p class="text-xs text-zinc-600 mt-2">Headlines scanned from worldwide sources.</p>
-                </div>
-                <div class="bg-zinc-900/30 border border-zinc-900 p-6 rounded-xl relative group hover:border-zinc-800 transition-all duration-300">
-                    <div class="text-xs text-zinc-500 font-medium">Smart Filtered</div>
-                    <div class="mt-4 text-3xl font-bold tracking-tight text-white font-mono" id="ai-processed">Loading...</div>
-                    <p class="text-xs text-zinc-600 mt-2">AI-analyzed and scored for real-world severity.</p>
-                </div>
-                <div class="bg-zinc-900/30 border border-zinc-900 p-6 rounded-xl relative group hover:border-zinc-800 transition-all duration-300">
-                    <div class="text-xs text-zinc-500 font-medium">Active Opportunities</div>
-                    <div class="mt-4 text-3xl font-bold tracking-tight text-white font-mono" id="converted-markets">Loading...</div>
-                    <p class="text-xs text-zinc-600 mt-2">High-impact news converted to markets.</p>
-                </div>
-            </div>
-        </div>
-
-        <div class="mb-14">
-            <h2 class="text-sm font-semibold uppercase tracking-widest text-zinc-500 font-mono mb-6">02 // Market Lifecycle</h2>
-            <div class="grid grid-cols-1 sm:grid-cols-3 gap-5">
-                <div class="bg-zinc-900/30 border border-zinc-900 p-6 rounded-xl relative group hover:border-zinc-800 transition-all duration-300">
-                    <div class="text-xs text-zinc-500 font-medium">Markets Created</div>
-                    <div class="mt-4 text-3xl font-bold tracking-tight text-white font-mono" id="markets-created">Loading...</div>
-                    <p class="text-xs text-zinc-600 mt-2">Prediction arenas opened by the pipeline.</p>
-                </div>
-                <div class="bg-zinc-900/30 border border-zinc-900 p-6 rounded-xl relative group hover:border-zinc-800 transition-all duration-300">
-                    <div class="text-xs text-zinc-500 font-medium">Markets Finalized</div>
-                    <div class="mt-4 text-3xl font-bold tracking-tight text-white font-mono" id="markets-finalized">Loading...</div>
-                    <p class="text-xs text-zinc-600 mt-2">Settled contracts past the dispute window.</p>
-                </div>
-                <div class="bg-zinc-900/30 border border-zinc-900 p-6 rounded-xl relative group hover:border-zinc-800 transition-all duration-300">
-                    <div class="text-xs text-zinc-500 font-medium">Resolution Efficiency</div>
-                    <div class="mt-4 text-3xl font-bold tracking-tight text-white font-mono" id="resolution-rate">Loading...</div>
-                    <p class="text-xs text-zinc-600 mt-2">Ratio of finalized versus created contracts.</p>
-                </div>
-            </div>
-        </div>
-
-        <div class="mb-16">
-            <h2 class="text-sm font-semibold uppercase tracking-widest text-zinc-500 font-mono mb-6">03 // On-Chain Settlement</h2>
-            <div class="grid grid-cols-1 sm:grid-cols-3 gap-5">
-                <div class="bg-zinc-900/30 border border-zinc-900 p-6 rounded-xl relative group hover:border-zinc-800 transition-all duration-300">
-                    <div class="text-xs text-zinc-500 font-medium">Total Positions</div>
-                    <div class="mt-4 text-3xl font-bold tracking-tight text-white font-mono" id="total-positions">Loading...</div>
-                    <p class="text-xs text-zinc-600 mt-2">Active stakes placed by users on-chain.</p>
-                </div>
-                <div class="bg-zinc-900/30 border border-zinc-900 p-6 rounded-xl relative group hover:border-zinc-800 transition-all duration-300">
-                    <div class="text-xs text-zinc-500 font-medium">Unique Wallets</div>
-                    <div class="mt-4 text-3xl font-bold tracking-tight text-white font-mono" id="unique-wallets">Loading...</div>
-                    <p class="text-xs text-zinc-600 mt-2">Distinct traders interacting with our contract.</p>
-                </div>
-                <div class="bg-zinc-900/30 border border-zinc-900 p-6 rounded-xl relative group hover:border-zinc-800 transition-all duration-300">
-                    <div class="text-xs text-zinc-500 font-medium">Total Volume Staked</div>
-                    <div class="mt-4 text-3xl font-bold tracking-tight text-white font-mono" id="total-staked">Loading...</div>
-                    <p class="text-xs text-zinc-600 mt-2">The absolute value backed by our community.</p>
-                </div>
-            </div>
-        </div>
-
-        <footer class="border-t border-zinc-900 pt-8 text-xs text-zinc-600 space-y-2">
-            <p>
-                We are actively building. Since Geomacro is currently live on the Arc Testnet, these numbers represent our early community growth and volume. However, the tech under the hood is fully mature: this entire autonomous pipeline has been running unattended and perfectly on schedule since day one.
-            </p>
-            <p>
-                Data is fetched in real-time from Geomacro’s production Supabase project (public anon/read-only access) and refreshes automatically on page load.
-            </p>
-        </footer>
+<body>
+<div id="net-bg"><canvas id="net-canvas"></canvas></div>
+<div class="bg-fade"></div>
+<main>
+  <header class="top">
+    <div class="brand-row">
+      <img src="assets/wordmark.png" alt="Geomacro" class="brand-logo" />
     </div>
+    <div class="live-pill"><span class="live-dot"></span> Live · Autonomous</div>
+  </header>
 
-    <script>
-        function initNetBg() {
-            const canvas = document.getElementById('net-canvas');
-            if (!canvas) return;
-            const ctx = canvas.getContext('2d');
-            let w = canvas.width = window.innerWidth;
-            let h = canvas.height = window.innerHeight;
-            const points = [];
-            const maxDist = 120;
+  <div class="eyebrow">System Analytics</div>
+  <h1>How the pipeline is actually running</h1>
+  <p class="lede">
+    Geomacro runs as a fully autonomous pipeline: news comes in, an AI model scores how severe it is,
+    a market gets created, and the result settles onchain, all without a human touching any step.
+    Everything below is pulled live from our production database and the
+    <a href="https://testnet.arcscan.app/address/0xC026fDFC40Dcd8F07b6ecFA21b2BF8400Db0FADe" target="_blank" rel="noreferrer">Arc Testnet contract</a>
+    the app itself runs on. Nothing here is sampled, mocked, or estimated.
+  </p>
 
-            for (let i = 0; i < 45; i++) {
-                points.push({
-                    x: Math.random() * w,
-                    y: Math.random() * h,
-                    vx: (Math.random() - 0.5) * 0.3,
-                    vy: (Math.random() - 0.5) * 0.3
-                });
-            }
+  <div id="status" class="status"><span class="spinner"></span> Loading live metrics...</div>
+  <div id="error" class="error" style="display:none;"></div>
 
-            function animate() {
-                ctx.clearRect(0, 0, w, h);
-                ctx.fillStyle = 'rgba(24, 24, 27, 0.2)';
-                
-                points.forEach(p => {
-                    p.x += p.vx;
-                    p.y += p.vy;
-                    if (p.x < 0 || p.x > w) p.vx *= -1;
-                    if (p.y < 0 || p.y > h) p.vy *= -1;
+  <div id="content" style="display:none;">
+    <section class="in-view">
+      <div class="grid hero-grid">
+        <div class="card tone-neutral">
+          <div class="card-label"><span class="card-icon">↻</span> Automation cadence</div>
+          <div class="card-value">Every 2h</div>
+          <div class="card-hint">Ingestion, scoring, creation, resolution, running 24/7</div>
+        </div>
+        <div class="card tone-success">
+          <div class="card-label"><span class="card-icon">⏱</span> Operating since</div>
+          <div class="card-value" id="uptime-days">—</div>
+          <div class="card-hint">Counted from the first event we ever ingested</div>
+        </div>
+        <div class="card tone-neutral">
+          <div class="card-label"><span class="card-icon">⚙</span> Protocol fee</div>
+          <div class="card-value">1.5%</div>
+          <div class="card-hint">Taken from payouts on claim(), onchain</div>
+        </div>
+      </div>
+    </section>
 
-                    ctx.beginPath();
-                    ctx.arc(p.x, p.y, 1.5, 0, Math.PI * 2);
-                    ctx.fillStyle = '#27272a';
-                    ctx.fill();
-                });
+    <section>
+      <div class="section-head">
+        <h2><span class="h2-icon" style="background:rgba(56,189,248,0.12); color:var(--dove);">◎</span> News ingestion</h2>
+      </div>
+      <p class="subtitle">Every headline gets classified for relevance and severity before it can turn into a market.</p>
+      <div class="grid">
+        <div class="card tone-dove">
+          <div class="card-label"><span class="card-icon">◎</span> Events ingested</div>
+          <div class="card-value" id="events-ingested">—</div>
+        </div>
+        <div class="card tone-dove">
+          <div class="card-label"><span class="card-icon">▲</span> AI-processed</div>
+          <div class="card-value" id="events-ai-processed">—</div>
+        </div>
+        <div class="card tone-success">
+          <div class="card-label"><span class="card-icon">▦</span> Converted to markets</div>
+          <div class="card-value" id="markets-created">—</div>
+          <div class="card-hint" id="conversion-rate"></div>
+          <div class="bar-track"><div class="bar-fill" id="conversion-bar"></div></div>
+        </div>
+      </div>
+      <div class="cat-list" id="category-badges"></div>
+    </section>
 
-                for (let i = 0; i < points.length; i++) {
-                    for (let j = i + 1; j < points.length; j++) {
-                        const dx = points[i].x - points[j].x;
-                        const dy = points[i].y - points[j].y;
-                        const dist = Math.sqrt(dx*dx + dy*dy);
+    <section>
+      <div class="section-head">
+        <h2><span class="h2-icon" style="background:rgba(245,158,11,0.12); color:var(--hawk);">▦</span> Market lifecycle</h2>
+      </div>
+      <p class="subtitle">Optimistic AI resolution, with a public, stake-backed dispute window before anything settles for good.</p>
+      <div class="grid">
+        <div class="card tone-hawk">
+          <div class="card-label"><span class="card-icon">▦</span> Markets created</div>
+          <div class="card-value" id="markets-created-2">—</div>
+        </div>
+        <div class="card tone-hawk">
+          <div class="card-label"><span class="card-icon">▲</span> Markets finalized</div>
+          <div class="card-value" id="markets-resolved">—</div>
+        </div>
+        <div class="card tone-success">
+          <div class="card-label"><span class="card-icon">⊘</span> Resolution rate</div>
+          <div class="card-value" id="resolution-rate">—</div>
+          <div class="card-hint">Finalized divided by created</div>
+          <div class="bar-track"><div class="bar-fill" id="resolution-bar"></div></div>
+        </div>
+      </div>
+    </section>
 
-                        if (dist < maxDist) {
-                            ctx.beginPath();
-                            ctx.moveTo(points[i].x, points[i].y);
-                            ctx.lineTo(points[j].x, points[j].y);
-                            ctx.strokeStyle = `rgba(63, 63, 70, ${1 - dist/maxDist})`;
-                            ctx.lineWidth = 0.6;
-                            ctx.stroke();
-                        }
-                    }
-                }
-                requestAnimationFrame(animate);
-            }
+    <section id="settlement-section">
+      <div class="section-head">
+        <h2><span class="h2-icon" style="background:rgba(52,211,153,0.12); color:var(--success);">$</span> Onchain settlement</h2>
+      </div>
+      <p class="subtitle">Every stake and claim below is a real Arc Testnet transaction. Nothing here is synthetic.</p>
+      <div class="grid">
+        <div class="card tone-success">
+          <div class="card-label"><span class="card-icon">▦</span> Total positions</div>
+          <div class="card-value" id="total-positions">—</div>
+        </div>
+        <div class="card tone-success">
+          <div class="card-label"><span class="card-icon">▲</span> Unique wallets</div>
+          <div class="card-value" id="unique-wallets">—</div>
+        </div>
+        <div class="card tone-success">
+          <div class="card-label"><span class="card-icon">$</span> Total staked</div>
+          <div class="card-value" id="total-staked">—</div>
+        </div>
+      </div>
+      <div class="split-wrap" id="split-wrap" style="display:none;">
+        <div class="split-labels">
+          <span class="hawk-label" id="hawk-split-label">HAWK — 0</span>
+          <span class="dove-label" id="dove-split-label">DOVE — 0</span>
+        </div>
+        <div class="split-track">
+          <div class="split-hawk" id="split-hawk"></div>
+          <div class="split-dove" id="split-dove"></div>
+        </div>
+      </div>
+    </section>
 
-            window.addEventListener('resize', () => {
-                w = canvas.width = window.innerWidth;
-                h = canvas.height = window.innerHeight;
-            });
-            animate();
+    <a class="back-link" href="https://geomacro.live" target="_blank" rel="noreferrer">← Back to Geomacro</a>
+
+    <div class="footnote">
+      <span class="live-dot"></span>
+      <span>
+        These are still early numbers. Geomacro is a new team building on Arc Testnet, so wallet and volume
+        counts are small for now. What you see above is an end-to-end pipeline that has been running
+        unattended, on schedule, since launch. Data comes straight from Geomacro's production Supabase
+        project (public, read-only access) and refreshes every time you load the page.
+      </span>
+    </div>
+  </div>
+</main>
+
+<script>
+  // ---------- Animated network-node background ----------
+  (function initNetBg() {
+    const canvas = document.getElementById("net-canvas");
+    const ctx = canvas.getContext("2d");
+    let w, h, dpr, nodes = [];
+    const HAWK_RGB = "245,158,11";
+    const DOVE_RGB = "56,189,248";
+    const NODE_COUNT_BASE = 60;
+
+    function resize() {
+      dpr = Math.min(window.devicePixelRatio || 1, 2);
+      w = window.innerWidth;
+      h = window.innerHeight;
+      canvas.width = w * dpr;
+      canvas.height = h * dpr;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      const count = Math.round(NODE_COUNT_BASE * Math.min(1.4, (w * h) / (1440 * 900)));
+      nodes = Array.from({ length: count }, () => ({
+        x: Math.random() * w,
+        y: Math.random() * h,
+        vx: (Math.random() - 0.5) * 0.18,
+        vy: (Math.random() - 0.5) * 0.18,
+        r: 1 + Math.random() * 1.6,
+        hue: Math.random() < 0.4 ? HAWK_RGB : DOVE_RGB,
+      }));
+    }
+
+    function step() {
+      ctx.clearRect(0, 0, w, h);
+      for (const n of nodes) {
+        n.x += n.vx; n.y += n.vy;
+        if (n.x < 0 || n.x > w) n.vx *= -1;
+        if (n.y < 0 || n.y > h) n.vy *= -1;
+      }
+      const maxDist = Math.min(150, w / 8);
+      for (let i = 0; i < nodes.length; i++) {
+        for (let j = i + 1; j < nodes.length; j++) {
+          const a = nodes[i], b = nodes[j];
+          const dx = a.x - b.x, dy = a.y - b.y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          if (dist < maxDist) {
+            const alpha = (1 - dist / maxDist) * 0.16;
+            ctx.strokeStyle = `rgba(${a.hue},${alpha})`;
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(a.x, a.y);
+            ctx.lineTo(b.x, b.y);
+            ctx.stroke();
+          }
         }
+      }
+      for (const n of nodes) {
+        ctx.beginPath();
+        ctx.arc(n.x, n.y, n.r, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(${n.hue},0.55)`;
+        ctx.fill();
+        const grad = ctx.createRadialGradient(n.x, n.y, 0, n.x, n.y, n.r * 3);
+        grad.addColorStop(0, `rgba(${n.hue},0.14)`);
+        grad.addColorStop(1, `rgba(${n.hue},0)`);
+        ctx.beginPath();
+        ctx.arc(n.x, n.y, n.r * 3, 0, Math.PI * 2);
+        ctx.fillStyle = grad;
+        ctx.fill();
+      }
+      requestAnimationFrame(step);
+    }
 
-        // Live Dynamic Fetching Engine from genuine endpoints
-        async function fetchLiveSystemVitals() {
-            try {
-                // Fetch direct from the original relative json configuration tracking parameters
-                const res = await fetch('https://raw.githubusercontent.com/blocknine0/geomacro-analytics/main/data.json');
-                if(!res.ok) throw new Error("Network metrics sync fallback");
-                const data = await res.json();
-                
-                document.getElementById('events-ingested').innerText = Number(data.eventsIngested || 0).toLocaleString();
-                document.getElementById('ai-processed').innerText = Number(data.aiProcessed || 0).toLocaleString();
-                document.getElementById('converted-markets').innerText = Number(data.convertedMarkets || 0).toLocaleString();
-                document.getElementById('markets-created').innerText = Number(data.marketsCreated || 0).toLocaleString();
-                document.getElementById('markets-finalized').innerText = Number(data.marketsFinalized || 0).toLocaleString();
-                
-                const rate = ((data.marketsFinalized / data.marketsCreated) * 100) || 0;
-                document.getElementById('resolution-rate').innerText = rate.toFixed(1) + '%';
-                
-                document.getElementById('total-positions').innerText = Number(data.totalPositions || 0).toLocaleString();
-                document.getElementById('unique-wallets').innerText = Number(data.uniqueWallets || 0).toLocaleString();
-                document.getElementById('total-staked').innerText = Number(data.totalStaked || 0).toLocaleString() + ' XFI';
-                
-                if(data.operatingSince) {
-                    document.getElementById('operating-since').innerText = data.operatingSince;
-                }
-            } catch (err) {
-                // Secondary fallback: Reading direct environment state components if local JSON is unassigned
-                console.warn("API Hook unresolved, connecting live project context state...");
-                // Standard default production backup values inside structural bounds:
-                document.getElementById('events-ingested').innerText = "14,280";
-                document.getElementById('ai-processed').innerText = "8,940";
-                document.getElementById('converted-markets').innerText = "1,250";
-                document.getElementById('markets-created').innerText = "1,250";
-                document.getElementById('markets-finalized').innerText = "1,180";
-                document.getElementById('resolution-rate').innerText = "94.4%";
-                document.getElementById('total-positions').innerText = "3,420";
-                document.getElementById('unique-wallets').innerText = "512";
-                document.getElementById('total-staked').innerText = "45,200 XFI";
-                document.getElementById('operating-since').innerText = "142 Days Running";
-            }
-        }
+    window.addEventListener("resize", resize);
+    resize();
+    requestAnimationFrame(step);
+  })();
 
-        document.addEventListener("DOMContentLoaded", () => {
-            initNetBg();
-            fetchLiveSystemVitals();
+  // ---------- Live data (this is the part that must stay untouched) ----------
+  // IMPORTANT: double check these two values against Supabase Dashboard -> Settings -> API
+  // before you publish. Copy-paste them from there directly to avoid any typo.
+  const SUPABASE_URL = "https://ldpwajisioljyjtojvfx.supabase.co";
+  const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxkcHdhamlzaW9sanlqdG9qdmZ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE2NjUxNTcsImV4cCI6MjA5NzI0MTE1N30.Hm2LwUWuuyA2O28_woD9m0MJCrV-o48SUKOk5FHANNI";
+
+  const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+
+  function fmt(n, digits = 0) {
+    if (!Number.isFinite(n)) return "0";
+    return n.toLocaleString(undefined, { maximumFractionDigits: digits });
+  }
+
+  function weiToUsdc(weiStr) {
+    try {
+      const wei = BigInt(weiStr || "0");
+      const divisor = 1000000000000000000n;
+      const whole = wei / divisor;
+      const frac = wei % divisor;
+      const fracStr = (frac * 100n / divisor).toString().padStart(2, "0");
+      return Number(`${whole}.${fracStr}`);
+    } catch {
+      return 0;
+    }
+  }
+
+  function animateCount(el, endValue, { decimals = 0, suffix = "", duration = 900 } = {}) {
+    if (!el || !Number.isFinite(endValue)) return;
+    const startTime = performance.now();
+    function tick(now) {
+      const p = Math.min(1, (now - startTime) / duration);
+      const eased = 1 - Math.pow(1 - p, 3);
+      const val = endValue * eased;
+      el.textContent = `${fmt(val, decimals)}${suffix}`;
+      if (p < 1) requestAnimationFrame(tick);
+    }
+    requestAnimationFrame(tick);
+  }
+
+  const revealObserver = new IntersectionObserver((entries) => {
+    for (const entry of entries) {
+      if (entry.isIntersecting) {
+        entry.target.classList.add("in-view");
+        revealObserver.unobserve(entry.target);
+      }
+    }
+  }, { threshold: 0.12 });
+
+  async function main() {
+    const statusEl = document.getElementById("status");
+    const errorEl = document.getElementById("error");
+    const contentEl = document.getElementById("content");
+    try {
+      const [
+        { count: totalEventsIngested },
+        { count: totalEventsAiProcessed },
+        { count: totalMarketsCreated },
+        { count: totalMarketsResolved },
+        { data: categoryRows },
+        { data: earliestRows },
+      ] = await Promise.all([
+        sb.from("events").select("*", { count: "exact", head: true }),
+        sb.from("events").select("*", { count: "exact", head: true }).eq("ai_processed", true),
+        sb.from("events").select("*", { count: "exact", head: true }).eq("market_created", true),
+        sb.from("events").select("*", { count: "exact", head: true }).eq("market_resolved", true),
+        sb.from("events").select("category").eq("market_created", true),
+        sb.from("events").select("created_at").order("created_at", { ascending: true }).limit(1),
+      ]);
+
+      animateCount(document.getElementById("events-ingested"), totalEventsIngested || 0);
+      animateCount(document.getElementById("events-ai-processed"), totalEventsAiProcessed || 0);
+      animateCount(document.getElementById("markets-created"), totalMarketsCreated || 0);
+      animateCount(document.getElementById("markets-created-2"), totalMarketsCreated || 0);
+      animateCount(document.getElementById("markets-resolved"), totalMarketsResolved || 0);
+
+      let convPct = 0;
+      if (totalEventsIngested) {
+        convPct = ((totalMarketsCreated || 0) / totalEventsIngested) * 100;
+        document.getElementById("conversion-rate").textContent = `${fmt(convPct, 1)}% of ingested events`;
+      }
+      requestAnimationFrame(() => {
+        document.getElementById("conversion-bar").style.width = `${Math.min(100, convPct)}%`;
+      });
+
+      const resRate = totalMarketsCreated
+        ? Math.round(((totalMarketsResolved || 0) / totalMarketsCreated) * 1000) / 10
+        : null;
+      document.getElementById("resolution-rate").textContent = resRate !== null ? `${resRate}%` : "—";
+      requestAnimationFrame(() => {
+        document.getElementById("resolution-bar").style.width = `${Math.min(100, resRate || 0)}%`;
+      });
+
+      const uptimeDays = earliestRows && earliestRows[0]
+        ? Math.max(0, Math.floor((Date.now() - new Date(earliestRows[0].created_at).getTime()) / 86400000))
+        : null;
+      document.getElementById("uptime-days").textContent = uptimeDays !== null ? `${fmt(uptimeDays)} days` : "—";
+
+      const catCounts = new Map();
+      for (const row of categoryRows || []) {
+        const cat = row.category || "unknown";
+        catCounts.set(cat, (catCounts.get(cat) || 0) + 1);
+      }
+      const catEntries = Array.from(catCounts.entries()).sort((a, b) => b[1] - a[1]);
+      const maxCat = catEntries.length ? catEntries[0][1] : 1;
+      const catListEl = document.getElementById("category-badges");
+      catEntries.forEach(([cat, count]) => {
+        const row = document.createElement("div");
+        row.className = "cat-row";
+        row.innerHTML = `
+          <div class="cat-name">${cat.replace(/_/g, " ")}</div>
+          <div class="cat-track"><div class="cat-fill" data-width="${(count / maxCat) * 100}"></div></div>
+          <div class="cat-count">${fmt(count)}</div>
+        `;
+        catListEl.appendChild(row);
+      });
+      requestAnimationFrame(() => {
+        document.querySelectorAll(".cat-fill").forEach((el) => {
+          el.style.width = `${el.dataset.width}%`;
         });
-    </script>
+      });
+
+      try {
+        const { data: positionRows, error: posErr } = await sb
+          .from("positions")
+          .select("wallet_address, side, staked_amount_raw");
+        if (posErr) throw posErr;
+        const rows = positionRows || [];
+        if (rows.length === 0) {
+          document.getElementById("settlement-section").style.display = "none";
+        } else {
+          const uniqueWallets = new Set(rows.map((r) => r.wallet_address)).size;
+          const hawkCount = rows.filter((r) => r.side === "HAWK").length;
+          const doveCount = rows.filter((r) => r.side === "DOVE").length;
+          const totalStakedRaw = rows.reduce((sum, r) => {
+            try { return sum + BigInt(r.staked_amount_raw || "0"); } catch { return sum; }
+          }, 0n);
+          const totalStakedUsdc = weiToUsdc(totalStakedRaw.toString());
+
+          animateCount(document.getElementById("total-positions"), rows.length);
+          animateCount(document.getElementById("unique-wallets"), uniqueWallets);
+          animateCount(document.getElementById("total-staked"), totalStakedUsdc, { decimals: 2, suffix: " USDC" });
+
+          const totalSides = hawkCount + doveCount;
+          const hawkPct = totalSides ? (hawkCount / totalSides) * 100 : 50;
+          const dovePct = 100 - hawkPct;
+          document.getElementById("split-wrap").style.display = "block";
+          document.getElementById("hawk-split-label").textContent = `HAWK — ${fmt(hawkCount)}`;
+          document.getElementById("dove-split-label").textContent = `DOVE — ${fmt(doveCount)}`;
+          requestAnimationFrame(() => {
+            document.getElementById("split-hawk").style.width = `${hawkPct}%`;
+            document.getElementById("split-dove").style.width = `${dovePct}%`;
+          });
+        }
+      } catch (posErr) {
+        console.warn("[analytics] positions table not publicly readable:", posErr);
+        document.getElementById("settlement-section").style.display = "none";
+      }
+
+      statusEl.style.display = "none";
+      contentEl.style.display = "block";
+      document.querySelectorAll("main section:not(.in-view)").forEach((s) => revealObserver.observe(s));
+    } catch (err) {
+      console.error("[analytics] failed to load:", err);
+      statusEl.style.display = "none";
+      errorEl.style.display = "block";
+      errorEl.textContent = "Could not load live metrics right now. Please refresh, or check back shortly.";
+    }
+  }
+
+  main();
+</script>
 </body>
 </html>
