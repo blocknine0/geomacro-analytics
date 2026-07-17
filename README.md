@@ -14,11 +14,11 @@ Geomacro ingests raw geopolitical/macro news, scores it with an LLM, spins up a 
 
 ## Data source
 
-Everything is queried live, client-side, from Geomacro's production Supabase project via a public, read-only anon key (RLS-scoped to `SELECT` only — no write access is possible with this key). Nothing on this page is sampled, mocked, or estimated. The relevant onchain contract is verifiable at [Arc Testnet Explorer](https://testnet.arcscan.app/address/0xC026fDFC40Dcd8F07b6ecFA21b2BF8400Db0FADe).
+Everything is queried live, client-side, from Geomacro's production Supabase project via a public, read-only anon key (RLS-scoped to `SELECT` only, no write access is possible with this key). Nothing on this page is sampled, mocked, or estimated. The relevant onchain contract is verifiable at [Arc Testnet Explorer](https://testnet.arcscan.app/address/0xC026fDFC40Dcd8F07b6ecFA21b2BF8400Db0FADe).
 
 ## Stack
 
-Single static `index.html` — vanilla JS, Supabase JS client (CDN), no build step. Deployed via GitHub Pages.
+Single static `index.html` = vanilla JS, Supabase JS client (CDN), no build step. Deployed via GitHub Pages.
 
 ## Related
 
