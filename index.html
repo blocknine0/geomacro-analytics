@@ -58,6 +58,7 @@
     padding: 6px 12px; border-radius: 999px; backdrop-filter: blur(6px);
   }
   .live-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--success); animation: pulse 2s infinite; }
+  .last-updated { font-family: var(--mono); font-size: 10.5px; color: var(--muted-2); letter-spacing: 0.03em; }
   @keyframes pulse {
     0% { box-shadow: 0 0 0 0 rgba(52,211,153,0.55); }
     70% { box-shadow: 0 0 0 7px rgba(52,211,153,0); }
@@ -139,6 +140,7 @@
       <img src="assets/wordmark.png" alt="Geomacro" class="brand-logo" />
     </div>
     <div class="live-pill"><span class="live-dot"></span> Live · Autonomous</div>
+    <div id="last-updated" class="last-updated"></div>
   </header>
 
   <div class="eyebrow">System Analytics</div>
@@ -390,10 +392,22 @@
     }
   }, { threshold: 0.12 });
 
-  async function main() {
+  const REFRESH_INTERVAL_MS = 15 * 60 * 1000; // 15 minutes
+  let isFetching = false;
+
+  function formatUpdatedAt(date) {
+    const hh = String(date.getHours()).padStart(2, "0");
+    const mm = String(date.getMinutes()).padStart(2, "0");
+    return `Updated ${hh}:${mm}`;
+  }
+
+  async function loadMetrics(isInitial = false) {
+    if (isFetching) return; // avoid overlapping fetches if one runs long
+    isFetching = true;
     const statusEl = document.getElementById("status");
     const errorEl = document.getElementById("error");
     const contentEl = document.getElementById("content");
+    const lastUpdatedEl = document.getElementById("last-updated");
     try {
       const [
         { count: totalEventsIngested },
@@ -447,6 +461,7 @@
       const catEntries = Array.from(catCounts.entries()).sort((a, b) => b[1] - a[1]);
       const maxCat = catEntries.length ? catEntries[0][1] : 1;
       const catListEl = document.getElementById("category-badges");
+      catListEl.innerHTML = ""; // clear previous rows before repopulating on refresh
       catEntries.forEach(([cat, count]) => {
         const row = document.createElement("div");
         row.className = "cat-row";
@@ -501,17 +516,43 @@
       }
 
       statusEl.style.display = "none";
+      errorEl.style.display = "none";
       contentEl.style.display = "block";
       document.querySelectorAll("main section:not(.in-view)").forEach((s) => revealObserver.observe(s));
+      lastUpdatedEl.textContent = formatUpdatedAt(new Date());
     } catch (err) {
       console.error("[analytics] failed to load:", err);
-      statusEl.style.display = "none";
-      errorEl.style.display = "block";
-      errorEl.textContent = "Could not load live metrics right now. Please refresh, or check back shortly.";
+      if (isInitial) {
+        // First load failed: nothing to show yet, surface the error.
+        statusEl.style.display = "none";
+        errorEl.style.display = "block";
+        errorEl.textContent = "Could not load live metrics right now. Please refresh, or check back shortly.";
+      } else {
+        // Background refresh failed: keep the last good numbers on screen,
+        // just flag it quietly instead of wiping the dashboard.
+        lastUpdatedEl.textContent = `${formatUpdatedAt(new Date())} (refresh failed, showing last good data)`;
+      }
+    } finally {
+      isFetching = false;
     }
   }
 
-  main();
+  let lastFetchTime = 0;
+  async function loadMetricsTracked(isInitial = false) {
+    lastFetchTime = Date.now();
+    await loadMetrics(isInitial);
+  }
+
+  loadMetricsTracked(true);
+  setInterval(() => loadMetricsTracked(false), REFRESH_INTERVAL_MS);
+
+  // Also refresh immediately when the tab regains focus, if it's been a
+  // while — catches the case where someone leaves the tab open overnight.
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible" && Date.now() - lastFetchTime > REFRESH_INTERVAL_MS) {
+      loadMetricsTracked(false);
+    }
+  });
 </script>
 </body>
 </html>
