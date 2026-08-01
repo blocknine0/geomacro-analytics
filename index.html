@@ -181,17 +181,17 @@
       <div class="section-head">
         <h2><span class="h2-icon" style="background:rgba(56,189,248,0.12); color:var(--dove);">◎</span> News ingestion</h2>
       </div>
-      <p class="subtitle">Every headline gets classified for relevance and severity before it can turn into a market.</p>
+      <p class="subtitle">Every headline gets classified for relevance and severity by Groq. Only stories that pass the check are logged below — off-topic articles are filtered out before they ever reach this table, so they aren't counted anywhere.</p>
       <div class="grid">
         <div class="card tone-dove">
-          <div class="card-label"><span class="card-icon">◎</span> Events ingested</div>
+          <div class="card-label"><span class="card-icon">◎</span> Relevant events logged</div>
           <div class="card-value" id="events-ingested">—</div>
+          <div class="card-hint">Passed Groq's relevance check</div>
         </div>
         <div class="card tone-success">
-          <div class="card-label"><span class="card-icon">▦</span> Converted to markets</div>
+          <div class="card-label"><span class="card-icon">▦</span> Markets created</div>
           <div class="card-value" id="markets-created">—</div>
-          <div class="card-hint" id="conversion-rate"></div>
-          <div class="bar-track"><div class="bar-fill" id="conversion-bar"></div></div>
+          <div class="card-hint" id="conversion-rate">Runs close to the logged count 1:1, since only relevance-approved events are stored here</div>
         </div>
       </div>
       <div class="cat-list" id="category-badges"></div>
@@ -431,14 +431,10 @@
       animateCount(document.getElementById("markets-created-2"), totalMarketsCreated || 0);
       animateCount(document.getElementById("markets-resolved"), totalMarketsResolved || 0);
 
-      let convPct = 0;
-      if (totalEventsIngested) {
-        convPct = ((totalMarketsCreated || 0) / totalEventsIngested) * 100;
-        document.getElementById("conversion-rate").textContent = `${fmt(convPct, 1)}% of ingested events`;
-      }
-      requestAnimationFrame(() => {
-        document.getElementById("conversion-bar").style.width = `${Math.min(100, convPct)}%`;
-      });
+      // Note: "Markets created" will always sit close to "Relevant events logged" —
+      // by design, only Groq-approved events ever get inserted into `events`, so
+      // this isn't a meaningful funnel metric. The hint text in the markup is
+      // static and intentionally not overwritten with a percentage here.
 
       const resRate = totalMarketsCreated
         ? Math.round(((totalMarketsResolved || 0) / totalMarketsCreated) * 1000) / 10
@@ -487,7 +483,11 @@
         if (rows.length === 0) {
           document.getElementById("settlement-section").style.display = "none";
         } else {
-          const uniqueWallets = new Set(rows.map((r) => r.wallet_address)).size;
+          // Normalize to lowercase before de-duping — Ethereum addresses are
+          // case-insensitive, but if some rows store checksummed (mixed-case)
+          // addresses and others store lowercase, a raw string Set() would
+          // count the same wallet twice.
+          const uniqueWallets = new Set(rows.map((r) => (r.wallet_address || "").toLowerCase())).size;
           const hawkCount = rows.filter((r) => r.side === "HAWK").length;
           const doveCount = rows.filter((r) => r.side === "DOVE").length;
           const totalStakedRaw = rows.reduce((sum, r) => {
