@@ -322,34 +322,6 @@ h2 { font-size: 19px; font-weight: 700; letter-spacing: -0.01em; margin: 0; disp
     </div>
   </section>
 
-  <section id="bridge-swap-section">
-    <div class="section-head">
-      <h2><span class="h2-icon" style="background:rgba(56,189,248,0.12); color:var(--dove);">⇄</span> Bridge &amp; swap</h2>
-    </div>
-    <p class="subtitle">CCTP V2 bridging into Arc, plus same-chain swaps via Circle's App Kit. Aggregated only — no wallet-level data is exposed here.</p>
-    <div class="grid cols-4">
-      <div class="card tone-dove">
-        <div class="card-label"><span class="card-icon">↓</span> Bridge txns</div>
-        <div class="card-value" id="bridge-count">—</div>
-      </div>
-      <div class="card tone-dove">
-        <div class="card-label"><span class="card-icon">$</span> Bridged in</div>
-        <div class="card-value" id="bridge-volume">—</div>
-      </div>
-      <div class="card tone-dove">
-        <div class="card-label"><span class="card-icon">⇄</span> Swap txns</div>
-        <div class="card-value" id="swap-count">—</div>
-      </div>
-      <div class="card tone-dove">
-        <div class="card-label"><span class="card-icon">$</span> Swap volume</div>
-        <div class="card-value" id="swap-volume">—</div>
-      </div>
-    </div>
-    <div class="empty-note" id="bridge-swap-empty-note">
-      No bridge or swap transactions recorded yet through this table.
-    </div>
-  </section>
-
   <a class="back-link" href="https://geomacro.live" target="_blank" rel="noreferrer">← Back to Geomacro</a>
 
   <div class="footnote">
@@ -358,8 +330,8 @@ h2 { font-size: 19px; font-weight: 700; letter-spacing: -0.01em; margin: 0; disp
       These are still early numbers. Geomacro is a new team building on Arc Testnet, so wallet and volume
       counts are small for now. What you see above is an end-to-end pipeline that has been running
       unattended, on schedule, since launch. Data comes straight from Geomacro's production Supabase
-      project (public, read-only access — the dispute and bridge/swap sections read from RLS-scoped
-      tables and a permissions-limited aggregate view respectively, never raw private rows) and
+      project (public, read-only access — the dispute section reads from RLS-scoped tables, never
+      raw private rows) and
       refreshes every time you load the page.
     </span>
   </div>
@@ -687,30 +659,6 @@ async function main() {
     } catch (posErr) {
       console.warn("[analytics] positions table not publicly readable:", posErr);
       document.getElementById("settlement-section").style.display = "none";
-    }
-
-    // ---- Bridge & swap (aggregate-only view, no wallet-level rows) ----
-    try {
-      const { data: txStatsRows, error: txErr } = await sb
-        .from("tx_history_public_stats")
-        .select("type, tx_count, unique_wallets, total_amount_in");
-      if (txErr) throw txErr;
-
-      const byType = new Map((txStatsRows || []).map((r) => [r.type, r]));
-      const bridge = byType.get("bridge");
-      const swap = byType.get("swap");
-
-      const hasAny = (bridge && bridge.tx_count > 0) || (swap && swap.tx_count > 0);
-
-      animateCount(document.getElementById("bridge-count"), bridge ? Number(bridge.tx_count) : 0);
-      animateCount(document.getElementById("bridge-volume"), bridge ? Number(bridge.total_amount_in) || 0 : 0, { decimals: 2, suffix: " USDC" });
-      animateCount(document.getElementById("swap-count"), swap ? Number(swap.tx_count) : 0);
-      animateCount(document.getElementById("swap-volume"), swap ? Number(swap.total_amount_in) || 0 : 0, { decimals: 2, suffix: "" });
-
-      document.getElementById("bridge-swap-empty-note").style.display = hasAny ? "none" : "block";
-    } catch (txErr) {
-      console.warn("[analytics] tx_history_public_stats view not readable:", txErr);
-      document.getElementById("bridge-swap-section").style.display = "none";
     }
 
     statusEl.style.display = "none";
