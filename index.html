@@ -158,10 +158,12 @@ h2 { font-size: 19px; font-weight: 700; letter-spacing: -0.01em; margin: 0; disp
 <p class="lede">
   Geomacro runs as a fully autonomous pipeline: news comes in, an AI model scores how severe it is,
   a market gets created, and the result settles onchain, all without a human touching any step.
-  Everything below is pulled live from our production database and the
-  <a href="https://testnet.arcscan.app/address/0xC026fDFC40Dcd8F07b6ecFA21b2BF8400Db0FADe" target="_blank" rel="noreferrer">Arc Testnet contract</a>
-  the app itself runs on. Nothing here is sampled, mocked, or estimated — every number is a live read
-  against the same database and same public read-only key powering the app.
+  Everything below is pulled live from the production database plus read-only Arc Testnet verification
+  against both the legacy V1 contract
+  <a href="https://testnet.arcscan.app/address/0xC026fDFC40Dcd8F07b6ecFA21b2BF8400Db0FADe" target="_blank" rel="noreferrer">V1</a>
+  and the V2 proxy
+  <a href="https://testnet.arcscan.app/address/0x2F874FB07084a22D2bB314D0762Af57Cb1856868" target="_blank" rel="noreferrer">V2</a>.
+  Nothing here is sampled, mocked, or estimated — unavailable data remains unavailable.
 </p>
 
 <div id="status" class="status"><span class="spinner"></span> Loading live metrics...</div>
@@ -421,6 +423,8 @@ const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: { persistSession: false, autoRefreshToken: false },
 });
+// Expose the read-only client to the isolated onchain data layer.
+window.sb = sb;
 
 function fmt(n, digits = 0) {
   if (!Number.isFinite(n)) return "0";
@@ -674,5 +678,7 @@ async function main() {
 
 main();
 </script>
+<script src="https://cdn.jsdelivr.net/npm/ethers@6.13.5/dist/ethers.umd.min.js" crossorigin="anonymous"></script>
+<script src="js/live-chain.js"></script>
 </body>
 </html>
