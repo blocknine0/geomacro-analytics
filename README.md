@@ -6,7 +6,7 @@ Live system-health dashboard for [Geomacro](https://geomacro.live) = a real-time
 
 ## What this shows
 
-Geomacro ingests raw geopolitical/macro news, scores it with an LLM, spins up a tradeable event contract, and settles it onchain — all without a human touching any step. This dashboard exposes that pipeline's real numbers across three stages:
+Geomacro ingests raw geopolitical/macro news, scores it with an LLM, spins up a tradeable event contract, and settles it onchain - all without a human touching any step. This dashboard exposes that pipeline's real numbers across three stages:
 
 - **News ingestion** = events ingested and how many convert into markets, broken down by category (geopolitics, macro, rare earth, crypto)
 - **Market lifecycle** = markets created, AI verdicts issued, markets finalized, and resolution rate
@@ -25,3 +25,8 @@ Single static `index.html` = vanilla JS, Supabase JS client (CDN), no build step
 - [Geomacro app](https://geomacro.live)
 - [Geomacro source](https://github.com/blocknine0/geomacro)
 - [X / Twitter](https://x.com/GeomacroLive)
+
+
+## Live onchain coverage
+
+The analytics page reads Arc Testnet market state from both the legacy V1 AgentArena and the V2 AgentArenaV2 proxy. V1 coverage is verified against the production event index and live contract reads. V2 historical discovery starts at deployment block 56797869.

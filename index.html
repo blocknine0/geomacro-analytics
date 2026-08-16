@@ -163,7 +163,7 @@ h2 { font-size: 19px; font-weight: 700; letter-spacing: -0.01em; margin: 0; disp
   <a href="https://testnet.arcscan.app/address/0xC026fDFC40Dcd8F07b6ecFA21b2BF8400Db0FADe" target="_blank" rel="noreferrer">V1</a>
   and the V2 proxy
   <a href="https://testnet.arcscan.app/address/0x2F874FB07084a22D2bB314D0762Af57Cb1856868" target="_blank" rel="noreferrer">V2</a>.
-  Nothing here is sampled, mocked, or estimated — unavailable data remains unavailable.
+  Nothing here is sampled, mocked, or estimated. Unavailable data remains unavailable.
 </p>
 
 <div id="status" class="status"><span class="spinner"></span> Loading live metrics...</div>
@@ -180,7 +180,7 @@ h2 { font-size: 19px; font-weight: 700; letter-spacing: -0.01em; margin: 0; disp
       </div>
       <div class="card tone-success">
         <div class="card-label"><span class="card-icon">⏱</span> Operating since</div>
-        <div class="card-value" id="uptime-days">—</div>
+        <div class="card-value" id="uptime-days">Loading...</div>
         <div class="card-hint">Counted from the first event we ever ingested</div>
       </div>
       <div class="card tone-neutral">
@@ -199,17 +199,17 @@ h2 { font-size: 19px; font-weight: 700; letter-spacing: -0.01em; margin: 0; disp
     <div class="grid">
       <div class="card tone-dove">
         <div class="card-label"><span class="card-icon">◎</span> Events ingested</div>
-        <div class="card-value" id="events-ingested">—</div>
+        <div class="card-value" id="events-ingested">Loading...</div>
       </div>
       <div class="card tone-success">
         <div class="card-label"><span class="card-icon">▦</span> Converted to markets</div>
-        <div class="card-value" id="markets-created">—</div>
+        <div class="card-value" id="markets-created">Loading...</div>
         <div class="card-hint" id="conversion-rate"></div>
         <div class="bar-track"><div class="bar-fill" id="conversion-bar"></div></div>
       </div>
       <div class="card tone-purple">
         <div class="card-label"><span class="card-icon">◈</span> Avg. severity score</div>
-        <div class="card-value" id="avg-severity">—</div>
+        <div class="card-value" id="avg-severity">Loading...</div>
         <div class="card-hint">Out of 100 · created markets only</div>
       </div>
     </div>
@@ -224,19 +224,19 @@ h2 { font-size: 19px; font-weight: 700; letter-spacing: -0.01em; margin: 0; disp
     <div class="grid">
       <div class="card tone-hawk">
         <div class="card-label"><span class="card-icon">▦</span> Markets created</div>
-        <div class="card-value" id="markets-created-2">—</div>
+        <div class="card-value" id="markets-created-2">Loading...</div>
       </div>
       <div class="card tone-hawk">
         <div class="card-label"><span class="card-icon">▲</span> AI verdicts issued</div>
-        <div class="card-value" id="events-ai-processed">—</div>
+        <div class="card-value" id="events-ai-processed">Loading...</div>
       </div>
       <div class="card tone-hawk">
         <div class="card-label"><span class="card-icon">✓</span> Markets finalized</div>
-        <div class="card-value" id="markets-resolved">—</div>
+        <div class="card-value" id="markets-resolved">Loading...</div>
       </div>
       <div class="card tone-success">
         <div class="card-label"><span class="card-icon">⊘</span> Resolution rate</div>
-        <div class="card-value" id="resolution-rate">—</div>
+        <div class="card-value" id="resolution-rate">Loading...</div>
         <div class="card-hint">Finalized divided by created</div>
         <div class="bar-track"><div class="bar-fill" id="resolution-bar"></div></div>
       </div>
@@ -249,19 +249,19 @@ h2 { font-size: 19px; font-weight: 700; letter-spacing: -0.01em; margin: 0; disp
     <div class="section-head">
       <h2><span class="h2-icon" style="background:rgba(167,139,250,0.14); color:var(--purple);">◆</span> Hawk vs. Dove briefings</h2>
     </div>
-    <p class="subtitle">Two independent AI agents argue opposite cases for every market before it opens — an honest conviction score each, not a fabricated consensus.</p>
+    <p class="subtitle">Two independent AI agents argue opposite cases for every market before it opens. Each conviction score is sourced from the briefing data.</p>
     <div class="grid">
       <div class="card tone-hawk">
         <div class="card-label"><span class="card-icon">🦅</span> Avg. Hawk conviction</div>
-        <div class="card-value" id="avg-hawk-conviction">—</div>
+        <div class="card-value" id="avg-hawk-conviction">Loading...</div>
       </div>
       <div class="card tone-dove">
         <div class="card-label"><span class="card-icon">🕊</span> Avg. Dove conviction</div>
-        <div class="card-value" id="avg-dove-conviction">—</div>
+        <div class="card-value" id="avg-dove-conviction">Loading...</div>
       </div>
       <div class="card tone-success">
         <div class="card-label"><span class="card-icon">▲</span> AI verdict split</div>
-        <div class="card-value smaller" id="ai-verdict-split">—</div>
+        <div class="card-value smaller" id="ai-verdict-split">Loading...</div>
         <div class="card-hint">Final tentative winner across resolved markets</div>
       </div>
     </div>
@@ -275,21 +275,21 @@ h2 { font-size: 19px; font-weight: 700; letter-spacing: -0.01em; margin: 0; disp
     <div class="grid">
       <div class="card tone-neutral">
         <div class="card-label"><span class="card-icon">⚖</span> Disputes raised</div>
-        <div class="card-value" id="disputes-raised">—</div>
+        <div class="card-value" id="disputes-raised">Loading...</div>
       </div>
       <div class="card tone-neutral">
         <div class="card-label"><span class="card-icon">✓</span> Disputes resolved</div>
-        <div class="card-value" id="disputes-resolved">—</div>
+        <div class="card-value" id="disputes-resolved">Loading...</div>
       </div>
       <div class="card tone-neutral">
         <div class="card-label"><span class="card-icon">◈</span> Jury votes cast</div>
-        <div class="card-value" id="jury-votes-cast">—</div>
+        <div class="card-value" id="jury-votes-cast">Loading...</div>
       </div>
     </div>
     <div class="cat-list" id="dispute-verdict-badges"></div>
     <div class="empty-note" id="dispute-empty-note">
       No disputes yet. AgentArenaV2 (the upgradeable contract this dispute system runs on) is deployed to
-      Arc Testnet but not yet activated for live markets — so this is a genuinely empty, not hidden, section.
+      Arc Testnet but not yet activated for live markets. This is a genuinely empty, not hidden, section.
     </div>
   </section>
 
@@ -301,21 +301,21 @@ h2 { font-size: 19px; font-weight: 700; letter-spacing: -0.01em; margin: 0; disp
     <div class="grid">
       <div class="card tone-success">
         <div class="card-label"><span class="card-icon">▦</span> Total positions</div>
-        <div class="card-value" id="total-positions">—</div>
+        <div class="card-value" id="total-positions">Loading...</div>
       </div>
       <div class="card tone-success">
         <div class="card-label"><span class="card-icon">▲</span> Unique wallets</div>
-        <div class="card-value" id="unique-wallets">—</div>
+        <div class="card-value" id="unique-wallets">Loading...</div>
       </div>
       <div class="card tone-success">
         <div class="card-label"><span class="card-icon">$</span> Total staked</div>
-        <div class="card-value" id="total-staked">—</div>
+        <div class="card-value" id="total-staked">Loading...</div>
       </div>
     </div>
     <div class="split-wrap" id="split-wrap" style="display:none;">
       <div class="split-labels">
-        <span class="hawk-label" id="hawk-split-label">HAWK — 0</span>
-        <span class="dove-label" id="dove-split-label">DOVE — 0</span>
+        <span class="hawk-label" id="hawk-split-label">HAWK: 0</span>
+        <span class="dove-label" id="dove-split-label">DOVE: 0</span>
       </div>
       <div class="split-track">
         <div class="split-hawk" id="split-hawk"></div>
@@ -332,7 +332,7 @@ h2 { font-size: 19px; font-weight: 700; letter-spacing: -0.01em; margin: 0; disp
       These are still early numbers. Geomacro is a new team building on Arc Testnet, so wallet and volume
       counts are small for now. What you see above is an end-to-end pipeline that has been running
       unattended, on schedule, since launch. Data comes straight from Geomacro's production Supabase
-      project (public, read-only access — the dispute section reads from RLS-scoped tables, never
+      project (public, read-only access; the dispute section reads from RLS-scoped tables, never
       raw private rows) and
       refreshes every time you load the page.
     </span>
@@ -428,7 +428,7 @@ const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
 window.sb = sb;
 
 function fmt(n, digits = 0) {
-  if (!Number.isFinite(n)) return "—";
+  if (!Number.isFinite(n)) return "Unavailable";
   return n.toLocaleString(undefined, { maximumFractionDigits: digits });
 }
 
@@ -527,7 +527,7 @@ async function main() {
     const resRate = totalMarketsCreated
       ? Math.round(((totalMarketsResolved || 0) / totalMarketsCreated) * 1000) / 10
       : null;
-    document.getElementById("resolution-rate").textContent = resRate !== null ? `${resRate}%` : "—";
+    document.getElementById("resolution-rate").textContent = resRate !== null ? `${resRate}%` : "Unavailable";
     requestAnimationFrame(() => {
       document.getElementById("resolution-bar").style.width = `${Math.min(100, resRate || 0)}%`;
     });
@@ -535,7 +535,7 @@ async function main() {
     const uptimeDays = earliestRows && earliestRows[0]
       ? Math.max(0, Math.floor((Date.now() - new Date(earliestRows[0].created_at).getTime()) / 86400000))
       : null;
-    document.getElementById("uptime-days").textContent = uptimeDays !== null ? `${fmt(uptimeDays)} days` : "—";
+    document.getElementById("uptime-days").textContent = uptimeDays !== null ? `${fmt(uptimeDays)} days` : "Unavailable";
 
     // Category breakdown
     const catCounts = new Map();
@@ -551,7 +551,7 @@ async function main() {
     // Average severity
     const sevValues = (severityRows || []).map((r) => r.severity).filter((v) => Number.isFinite(v));
     const avgSeverity = sevValues.length ? sevValues.reduce((a, b) => a + b, 0) / sevValues.length : null;
-    document.getElementById("avg-severity").textContent = avgSeverity !== null ? fmt(avgSeverity, 1) : "—";
+    document.getElementById("avg-severity").textContent = avgSeverity !== null ? fmt(avgSeverity, 1) : "Unavailable";
 
     // Lifecycle stage breakdown
     const lifecycleCounts = new Map();
@@ -570,8 +570,8 @@ async function main() {
     const doveVals = (briefingRows || []).map((r) => r.dove_conviction).filter((v) => Number.isFinite(v));
     const avgHawk = hawkVals.length ? hawkVals.reduce((a, b) => a + b, 0) / hawkVals.length : null;
     const avgDove = doveVals.length ? doveVals.reduce((a, b) => a + b, 0) / doveVals.length : null;
-    document.getElementById("avg-hawk-conviction").textContent = avgHawk !== null ? `${fmt(avgHawk, 1)}%` : "—";
-    document.getElementById("avg-dove-conviction").textContent = avgDove !== null ? `${fmt(avgDove, 1)}%` : "—";
+    document.getElementById("avg-hawk-conviction").textContent = avgHawk !== null ? `${fmt(avgHawk, 1)}%` : "Unavailable";
+    document.getElementById("avg-dove-conviction").textContent = avgDove !== null ? `${fmt(avgDove, 1)}%` : "Unavailable";
 
     const verdictCounts = new Map();
     for (const row of verdictRows || []) {
@@ -579,7 +579,7 @@ async function main() {
       verdictCounts.set(w, (verdictCounts.get(w) || 0) + 1);
     }
     const verdictParts = Array.from(verdictCounts.entries()).map(([k, v]) => `${k} ${fmt(v)}`);
-    document.getElementById("ai-verdict-split").textContent = verdictParts.length ? verdictParts.join(" · ") : "—";
+    document.getElementById("ai-verdict-split").textContent = verdictParts.length ? verdictParts.join(" · ") : "Unavailable";
 
     // ---- Dispute system (RLS: public read, per 001 migration) ----
     try {
@@ -645,8 +645,8 @@ async function main() {
         const dovePct = 100 - hawkPct;
 
         document.getElementById("split-wrap").style.display = "block";
-        document.getElementById("hawk-split-label").textContent = `HAWK — ${fmt(hawkCount)}`;
-        document.getElementById("dove-split-label").textContent = `DOVE — ${fmt(doveCount)}`;
+        document.getElementById("hawk-split-label").textContent = `HAWK - ${fmt(hawkCount)}`;
+        document.getElementById("dove-split-label").textContent = `DOVE - ${fmt(doveCount)}`;
         requestAnimationFrame(() => {
           document.getElementById("split-hawk").style.width = `${hawkPct}%`;
           document.getElementById("split-dove").style.width = `${dovePct}%`;
