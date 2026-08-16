@@ -141,7 +141,7 @@
 
   async function loadV2Created(provider) {
     const contract = new ethers.Contract(CONFIG.v2.address, V2_ABI, provider);
-    const latest = await latestBlock(provider);
+    const latest = await getLatestBlock(provider);
     const events = await queryInChunks(contract, contract.filters.MarketCreated(), CONFIG.v2.fromBlock, latest);
 
     const byId = new Map();
@@ -377,7 +377,10 @@
       const vals = arr.map(x => x.totalStaked).filter(Number.isFinite);
       return vals.length ? vals.reduce((a,b) => a+b,0) : null;
     };
-    const allReadable = good.length === markets.length;
+    const v1Markets = markets.filter(m => m.version === "v1");
+    const v2Markets = markets.filter(m => m.version === "v2");
+    const v1ReadableAll = v1Markets.length === v1Good.length;
+    const v2ReadableAll = v2Markets.length === v2Good.length;
 
     let positions = {
       v1: { wallets: new Set(), count: 0, staked: 0 },
@@ -398,12 +401,12 @@
       v1: {
         marketCount: markets.filter(m => m.version === "v1").length,
         liveCount: v1Good.length,
-        totalStaked: allReadable ? sum(v1Good) : null
+        totalStaked: v1ReadableAll ? sum(v1Good) : null
       },
       v2: {
         marketCount: markets.filter(m => m.version === "v2").length,
         liveCount: v2Good.length,
-        totalStaked: allReadable ? sum(v2Good) : null
+        totalStaked: v2ReadableAll ? sum(v2Good) : null
       },
       combined: { marketCount: markets.length },
       positions,
