@@ -157,13 +157,13 @@ h2 { font-size: 19px; font-weight: 700; letter-spacing: -0.01em; margin: 0; disp
 <h1>How the pipeline is actually running</h1>
 <p class="lede">
   Geomacro runs as a fully autonomous pipeline: news comes in, an AI model scores how severe it is,
-  a market gets created, and the result settles onchain, all without a human touching any step.
-  Everything below is pulled live from the production database plus read-only Arc Testnet verification
+  a market gets created, and the result settles onchain — all without a human touching a single step.
+  Everything below is pulled live from the production database, plus read-only Arc Testnet verification
   against both the legacy V1 contract
-  <a href="https://testnet.arcscan.app/address/0xC026fDFC40Dcd8F07b6ecFA21b2BF8400Db0FADe" target="_blank" rel="noreferrer">V1</a>
+  (<a href="https://testnet.arcscan.app/address/0xC026fDFC40Dcd8F07b6ecFA21b2BF8400Db0FADe" target="_blank" rel="noreferrer">V1</a>)
   and the V2 proxy
-  <a href="https://testnet.arcscan.app/address/0x2F874FB07084a22D2bB314D0762Af57Cb1856868" target="_blank" rel="noreferrer">V2</a>.
-  Nothing here is sampled, mocked, or estimated. Unavailable data remains unavailable.
+  (<a href="https://testnet.arcscan.app/address/0x2F874FB07084a22D2bB314D0762Af57Cb1856868" target="_blank" rel="noreferrer">V2</a>).
+  Nothing here is sampled, mocked, or estimated — data we don't have simply shows as unavailable.
 </p>
 
 <div id="status" class="status"><span class="spinner"></span> Loading live metrics...</div>
@@ -249,15 +249,17 @@ h2 { font-size: 19px; font-weight: 700; letter-spacing: -0.01em; margin: 0; disp
     <div class="section-head">
       <h2><span class="h2-icon" style="background:rgba(167,139,250,0.14); color:var(--purple);">◆</span> Hawk vs. Dove briefings</h2>
     </div>
-    <p class="subtitle">Two independent AI agents argue opposite cases for every market before it opens. Each conviction score is sourced from the briefing data.</p>
+    <p class="subtitle">Two independent AI agents argue opposite cases for every market before it opens, each backing its case with its own conviction score.</p>
     <div class="grid">
       <div class="card tone-hawk">
         <div class="card-label"><span class="card-icon">🦅</span> Avg. Hawk conviction</div>
         <div class="card-value" id="avg-hawk-conviction">Loading...</div>
+        <div class="card-hint">Hawk's own confidence in its case — independent of Dove's, not a complementary split</div>
       </div>
       <div class="card tone-dove">
         <div class="card-label"><span class="card-icon">🕊</span> Avg. Dove conviction</div>
         <div class="card-value" id="avg-dove-conviction">Loading...</div>
+        <div class="card-hint">Dove's own confidence in its case — both agents can score high at once, so the two won't sum to 100%</div>
       </div>
       <div class="card tone-success">
         <div class="card-label"><span class="card-icon">▲</span> AI verdict split</div>
@@ -288,8 +290,10 @@ h2 { font-size: 19px; font-weight: 700; letter-spacing: -0.01em; margin: 0; disp
     </div>
     <div class="cat-list" id="dispute-verdict-badges"></div>
     <div class="empty-note" id="dispute-empty-note">
-      No disputes yet. AgentArenaV2 (the upgradeable contract this dispute system runs on) is deployed to
-      Arc Testnet but not yet activated for live markets. This is a genuinely empty, not hidden, section.
+      No disputes raised yet. AgentArenaV2's dispute system (5-agent jury, 4-of-5 votes to overturn)
+      is live and active on Arc Testnet — no market has been challenged so far, which is a genuinely
+      empty, not hidden, count. The legacy V1 contract has no dispute path at all; every dispute shown
+      on this page, present or future, will be a V2 market.
     </div>
   </section>
 
@@ -329,12 +333,11 @@ h2 { font-size: 19px; font-weight: 700; letter-spacing: -0.01em; margin: 0; disp
   <div class="footnote">
     <span class="live-dot"></span>
     <span>
-      These are still early numbers. Geomacro is a new team building on Arc Testnet, so wallet and volume
-      counts are small for now. What you see above is an end-to-end pipeline that has been running
-      unattended, on schedule, since launch. Data comes straight from Geomacro's production Supabase
-      project (public, read-only access; the dispute section reads from RLS-scoped tables, never
-      raw private rows) and
-      refreshes every time you load the page.
+      These are still early numbers — Geomacro is a new team building on Arc Testnet, so wallet and
+      volume counts are small for now. What you see above is an end-to-end pipeline that has been
+      running unattended, on schedule, since launch. Data comes straight from Geomacro's production
+      Supabase project (public, read-only access; the dispute section reads from RLS-scoped tables,
+      never raw private rows) and refreshes every time you load the page.
     </span>
   </div>
 
