@@ -24,9 +24,12 @@
       fromBlock: 56797869,
     },
     logChunk: 20000,
-    concurrency: 8,
+    concurrency: 3,
     maxMarkets: 2000,
     refreshMs: 5 * 60 * 1000,
+    retryAttempts: 5,
+    retryBaseDelayMs: 800,
+    chunkStaggerMs: 250,
   };
 
   const V1_ABI = [
@@ -85,8 +88,38 @@
       .replaceAll("'", "&#039;");
   }
 
+  function sleep(ms) {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+  }
+
+  function isRateLimitError(err) {
+    const status = err?.error?.code ?? err?.status ?? err?.code;
+    if (status === 429) return true;
+    const msg = String(err?.error?.message || err?.shortMessage || err?.message || "");
+    return /429|rate limit|too many requests/i.test(msg);
+  }
+
+  // Retries an RPC call with exponential backoff + jitter, but only for
+  // rate-limit (429) style errors. Other errors (bad request, contract
+  // revert, etc.) fail fast since retrying them would just waste time.
+  async function withRetry(fn, { retries = CONFIG.retryAttempts, baseDelay = CONFIG.retryBaseDelayMs } = {}) {
+    let lastErr;
+    for (let attempt = 0; attempt <= retries; attempt++) {
+      try {
+        return await fn();
+      } catch (err) {
+        lastErr = err;
+        if (!isRateLimitError(err) || attempt === retries) throw err;
+        const delay = baseDelay * Math.pow(2, attempt) + Math.random() * 250;
+        console.warn(`[onchain] RPC rate limited (429); retrying in ${Math.round(delay)}ms (attempt ${attempt + 1}/${retries})`);
+        await sleep(delay);
+      }
+    }
+    throw lastErr;
+  }
+
   async function getLatestBlock(provider) {
-    return provider.getBlockNumber();
+    return withRetry(() => provider.getBlockNumber());
   }
 
   async function queryInChunks(contract, filter, fromBlock, toBlock) {
@@ -96,7 +129,8 @@
     for (let start = fromBlock; start <= toBlock; start += CONFIG.logChunk) {
       const end = Math.min(toBlock, start + CONFIG.logChunk - 1);
       try {
-        out.push(...await contract.queryFilter(filter, start, end));
+        out.push(...await withRetry(() => contract.queryFilter(filter, start, end)));
+        if (start + CONFIG.logChunk <= toBlock) await sleep(CONFIG.chunkStaggerMs);
         continue;
       } catch (firstErr) {
         console.warn("[onchain] large log range rejected; retrying smaller windows", start, end, firstErr);
@@ -106,10 +140,11 @@
       for (let s = start; s <= end; s += half) {
         const e = Math.min(end, s + half - 1);
         try {
-          out.push(...await contract.queryFilter(filter, s, e));
+          out.push(...await withRetry(() => contract.queryFilter(filter, s, e)));
         } catch (err) {
           console.warn("[onchain] log range failed", s, e, err);
         }
+        if (e < end) await sleep(CONFIG.chunkStaggerMs);
       }
     }
     return out;
@@ -186,10 +221,10 @@
     const contract = new ethers.Contract(item.marketAddress, abi, provider);
 
     try {
-      const basic = await contract.getMarket(item.marketId);
+      const basic = await withRetry(() => contract.getMarket(item.marketId));
       let full = null;
       try {
-        full = await contract.getMarketFullDetails(item.marketId);
+        full = await withRetry(() => contract.getMarketFullDetails(item.marketId));
       } catch (err) {
         console.warn("[onchain] full detail read unavailable", item.marketId, err);
       }
@@ -281,11 +316,6 @@
       .version-link { color:var(--dove); text-decoration:none; border-bottom:1px solid rgba(56,189,248,.25); }
       .version-link:hover { border-bottom-color:var(--dove); }
       .metrics-grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px; margin-top:14px; }
-      .panels-row { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:16px; align-items:start; margin-top:18px; }
-      .panels-row .version-panel { margin-top:0; }
-      .panels-row .metrics-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
-      .dispute-support { color:var(--success); }
-      .dispute-unsupported { color:var(--muted); }
       .metric-card { border:1px solid var(--border); background:rgba(255,255,255,.025); border-radius:14px; padding:16px; min-width:0; }
       .metric-label { font-family:var(--mono); text-transform:uppercase; letter-spacing:.08em; color:var(--muted-2); font-size:9.5px; }
       .metric-value { margin-top:8px; font-family:var(--mono); font-size:20px; font-weight:650; font-variant-numeric:tabular-nums; }
@@ -302,8 +332,7 @@
       .status-warn { color:var(--hawk); border-color:rgba(245,158,11,.25); background:rgba(245,158,11,.06); }
       .coverage-note { margin-top:10px; color:var(--muted-2); font-size:10.5px; line-height:1.55; }
       .onchain-warning { margin-top:12px; border:1px dashed rgba(245,158,11,.25); color:var(--muted); background:rgba(245,158,11,.035); border-radius:12px; padding:12px 14px; font-size:11.5px; line-height:1.55; }
-      @media (max-width: 1180px) { .panels-row { grid-template-columns:repeat(1,minmax(0,1fr)); } .panels-row .metrics-grid { grid-template-columns:repeat(4,minmax(0,1fr)); } }
-      @media (max-width: 900px) { .metrics-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } .panels-row .metrics-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } .onchain-coverage { grid-template-columns:1fr; } }
+      @media (max-width: 900px) { .metrics-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } .onchain-coverage { grid-template-columns:1fr; } }
       @media (max-width: 560px) { .metrics-grid { grid-template-columns:1fr 1fr; } .data-table { min-width:680px; } .metric-value { font-size:17px; } }
     `;
     document.head.appendChild(style);
@@ -359,18 +388,6 @@
     const badgeClass = version === "v1" ? "version-v1" : "version-v2";
     const addressLink = `${CONFIG.explorer}/address/${config.address}`;
 
-    // V1 (legacy AgentArena) has no dispute path — the contract never
-    // exposes disputeBond/disputeRaisedAt and status 3 (DISPUTED) is
-    // unreachable there. V2 (AgentArenaV2) activated the 24h dispute
-    // window with a 5-member AI jury, so its dispute count is live data.
-    const disputesSupported = version === "v2";
-    const disputeCount = disputesSupported
-      ? readable.filter((m) => m.status === 3 || m.disputeRaisedAt != null).length
-      : null;
-    const disputeMetric = disputesSupported
-      ? metricCard("Disputes", fmt(disputeCount), "Markets currently in dispute · 5-member AI jury, 4-of-5 to overturn")
-      : metricCard("Disputes", "Not supported", "V1 has no dispute path — AI verdict is final");
-
     return `
       <div class="card version-panel">
         <div class="panel-head">
@@ -389,7 +406,6 @@
           ${metricCard("Indexed positions", fmt(positionData.count), "Supabase position mirror")}
           ${metricCard("Unique wallets", fmt(positionData.wallets.size), "Wallets linked to this version")}
           ${metricCard("Position stake", `${fmt(positionData.staked, 2)} USDC`, "Recorded position amounts")}
-          ${disputeMetric}
         </div>
         ${renderVersionTable(items)}
       </div>
@@ -409,17 +425,41 @@
     return el;
   }
 
-  function renderCombinedPanel(summary) {
+  function render(summary) {
+    const section = ensureSection();
+    if (!section) return;
+
     const combinedWallets = new Set([...summary.positions.v1.wallets, ...summary.positions.v2.wallets]);
     const totalStake = [summary.v1.onchainStake, summary.v2.onchainStake].filter(Number.isFinite);
     const combinedStake = totalStake.length === 2 ? totalStake[0] + totalStake[1] : null;
-    // V1 has no dispute path, so the combined figure is simply V2's count —
-    // shown here for a single at-a-glance protocol-wide number.
-    const combinedDisputes = summary.combined.markets.filter(
-      (m) => m.version === "v2" && (m.status === 3 || m.disputeRaisedAt != null),
-    ).length;
 
-    return `
+    section.innerHTML = `
+      <div class="section-head">
+        <h2><span class="h2-icon" style="background:rgba(167,139,250,0.12);color:var(--purple);">◈</span> Onchain Market Intelligence</h2>
+      </div>
+      <p class="subtitle">Independent live views of the legacy V1 contract and the current V2 proxy, followed by a combined protocol snapshot.</p>
+
+      <div class="onchain-coverage">
+        <div class="card tone-hawk">
+          <div class="card-label">V1 coverage</div>
+          <div class="card-value">${fmt(summary.v1.items)}</div>
+          <div class="card-hint">${fmt(summary.v1.readable)} verified live records</div>
+        </div>
+        <div class="card tone-dove">
+          <div class="card-label">V2 coverage</div>
+          <div class="card-value">${fmt(summary.v2.items)}</div>
+          <div class="card-hint">${fmt(summary.v2.readable)} verified live records</div>
+        </div>
+        <div class="card tone-purple">
+          <div class="card-label">Protocol snapshot</div>
+          <div class="card-value">${fmt(summary.combined.items)}</div>
+          <div class="card-hint">Unique V1 + V2 markets in this snapshot</div>
+        </div>
+      </div>
+
+      ${renderVersionPanel("v1", summary.v1.markets, summary.positions.v1)}
+      ${renderVersionPanel("v2", summary.v2.markets, summary.positions.v2)}
+
       <div class="card version-panel">
         <div class="panel-head">
           <div>
@@ -436,7 +476,7 @@
           ${metricCard("Combined positions", fmt(summary.positions.v1.count + summary.positions.v2.count), "Supabase position mirror")}
           ${metricCard("Combined wallets", fmt(combinedWallets.size), "Unique across V1 + V2")}
           ${metricCard("RPC status", summary.rpcOk ? "LIVE" : "ERROR", "Arc Testnet")}
-          ${metricCard("Combined disputes", fmt(combinedDisputes), "V2 only — V1 has no dispute path")}
+          ${metricCard("Last refresh", summary.updatedAt, "Automatic refresh every 5 minutes")}
         </div>
         <div class="data-table-wrap">
           <table class="data-table">
@@ -457,43 +497,7 @@
             </tbody>
           </table>
         </div>
-        <div class="coverage-note">V2 historical discovery begins at deployment block ${CONFIG.v2.fromBlock}. V1 legacy coverage comes from the production event index and live contract reads. Last refresh: ${escapeHtml(summary.updatedAt)} · auto-refreshes every ${Math.round(CONFIG.refreshMs / 60000)} min.</div>
-      </div>
-    `;
-  }
-
-  function render(summary) {
-    const section = ensureSection();
-    if (!section) return;
-
-    section.innerHTML = `
-      <div class="section-head">
-        <h2><span class="h2-icon" style="background:rgba(167,139,250,0.12);color:var(--purple);">◈</span> Onchain Market Intelligence</h2>
-      </div>
-      <p class="subtitle">Independent live views of the legacy V1 contract and the current V2 proxy, side by side, followed by a combined protocol snapshot.</p>
-
-      <div class="onchain-coverage">
-        <div class="card tone-hawk">
-          <div class="card-label">V1 coverage</div>
-          <div class="card-value">${fmt(summary.v1.items)}</div>
-          <div class="card-hint">${fmt(summary.v1.readable)} verified live records</div>
-        </div>
-        <div class="card tone-dove">
-          <div class="card-label">V2 coverage</div>
-          <div class="card-value">${fmt(summary.v2.items)}</div>
-          <div class="card-hint">${fmt(summary.v2.readable)} verified live records</div>
-        </div>
-        <div class="card tone-purple">
-          <div class="card-label">Protocol snapshot</div>
-          <div class="card-value">${fmt(summary.combined.items)}</div>
-          <div class="card-hint">Unique V1 + V2 markets in this snapshot</div>
-        </div>
-      </div>
-
-      <div class="panels-row">
-        ${renderVersionPanel("v1", summary.v1.markets, summary.positions.v1)}
-        ${renderVersionPanel("v2", summary.v2.markets, summary.positions.v2)}
-        ${renderCombinedPanel(summary)}
+        <div class="coverage-note">V2 historical discovery begins at deployment block ${CONFIG.v2.fromBlock}. V1 legacy coverage comes from the production event index and live contract reads.</div>
       </div>
 
       ${summary.errors.length ? `<div class="onchain-warning">${escapeHtml(summary.errors.join(" "))}</div>` : ""}
